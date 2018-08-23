@@ -9,17 +9,14 @@
 class mcubake_h
 {
   private:
-  float temp = 0;
-  float humid = 0;
+  int temp = 0;
+  int humid = 0;
   int eeprom_read = 0;
   int poz = 0;
   int poz_max = 3;
-  int poz_min = -3;
-  int pozOld = 0;
-  int pozNew = 0;
+  int poz_min = 0;
   int page_max = 1;
   int page_min = 0;
-  int keypad_pin = 0;   //A0
   int keypad_value = 0;
   int keypad_value_old = 0;
   char btn_push;
@@ -27,16 +24,17 @@ class mcubake_h
   int press_max = 1;
   
   private:
-  float getDHTTemp();
-  float getDHTHumid();
-  float getTemp();
-  float getHumid();
+  int getDHTTemp();
+  int getDHTHumid();
+  int getTemp();
+  int getHumid();
   void setHumid();
   void setTemp();
-  void writeEEPROM();
+  void writeEEPROM(int val);
   int readEEPROM();
+  void setEEProm(int val);
+  int getEEProm();
   void WaitBtnRelease();
-  void clearLcd();
   
   public:
   int page = 0;
@@ -48,6 +46,7 @@ class mcubake_h
   void indexPage();
   void showAboutPage();
   void setHumidPage();
+  void setRelayCtrl();
 };
 
 extern mcubake_h MCUBAKE;

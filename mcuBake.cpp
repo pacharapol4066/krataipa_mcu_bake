@@ -13,37 +13,31 @@ DHT dht(DHTPIN, DHTTYPE);
 /*************** BUTTON CONFIG ***************/
 char mcubake_h::ReadKeypad()
 {
-/* Keypad button analog Value
-no button pressed 1023
-nul     >400    select  <400
-left    <350    down    <290
-up      <190    right   <50
-*/
-    keypad_value = analogRead(keypad_pin);
+    keypad_value = analogRead(KEYPAD_PIN);
     if (keypad_value < 50)
-    return 'R';
-    else if (keypad_value < 190)
-    return 'D';
-    else if (keypad_value < 290)
-    return 'U';
-    else if (keypad_value < 350)
-    return 'L';
-    else if (keypad_value < 400)
-    return 'S';
-    else if (keypad_value > 400)
-    return 'N';
+      return 'R';
+    else if (keypad_value > 50 && keypad_value < 250)
+      return 'U';
+    else if (keypad_value > 250 && keypad_value < 450)
+      return 'D';
+    else if (keypad_value > 450 && keypad_value < 650)
+      return 'L';
+    else if (keypad_value > 650 && keypad_value < 850)
+      return 'S';
+    else if (keypad_value > 1000)
+      return 'N';
 }
 
 void mcubake_h::WaitBtnRelease()
 {
-    while (analogRead(keypad_pin) < 600) {}
+    while (analogRead(KEYPAD_PIN) < 600) {}
 }
 
 /*************** VALUE CONTROL METHOD ***************/
 
-float mcubake_h::getDHTTemp()
+int mcubake_h::getDHTTemp()
 {
-   float t = dht.readTemperature();
+   int t = dht.readTemperature();
    if (isnan(t)) {
       return 0;
    } else {
@@ -51,24 +45,14 @@ float mcubake_h::getDHTTemp()
    }
 }
 
-float mcubake_h::getDHTHumid()
+int mcubake_h::getDHTHumid()
 {
-   float h = dht.readHumidity();
+   int h = dht.readHumidity();
    if (isnan(h)) {
       return 0;
    } else {
       return h;
    }
-}
-
-float mcubake_h::getTemp()
-{
-    return temp;
-}
-
-float mcubake_h::getHumid()
-{
-    return humid;
 }
 
 void mcubake_h::setHumid()
@@ -81,11 +65,20 @@ void mcubake_h::setTemp()
     temp = getDHTTemp();
 }
 
-void mcubake_h::writeEEPROM()
+int mcubake_h::getTemp()
 {
-    EEPROM.write(0, eeprom_read>>8);
-    EEPROM.write(1, eeprom_read&0xFF);
-    eeprom_read = 0;
+    return temp;
+}
+
+int mcubake_h::getHumid()
+{
+    return humid;
+}
+
+void mcubake_h::writeEEPROM(int val)
+{
+    EEPROM.write(0, val>>8);
+    EEPROM.write(1, val&0xFF);
 }
 
 int mcubake_h::readEEPROM()
@@ -94,29 +87,36 @@ int mcubake_h::readEEPROM()
     int returnVal = 0;
     readeeprom |= EEPROM.read(0)<<8;
     readeeprom |= EEPROM.read(1)&0xFF;
-    if (isnan(readeeprom)) {
-      returnVal = DEFAULTHUMID;
+    if (readeeprom < 0) {
+      return DEFAULTHUMID;
     }
     else{
-      returnVal = readeeprom;
+      return readeeprom;
     }
-    return returnVal;
+}
+
+void mcubake_h::setEEProm(int val)
+{
+    eeprom_read = val;
+}
+
+int mcubake_h::getEEProm()
+{
+    return eeprom_read;
 }
 
 /*************** PAGE CONFIGURATION *******************/
 
 void mcubake_h::init(void)
 {
+   Serial.begin(9600);
    lcd.begin(16, 2);              // start the library
-   clearLcd();
+   lcd.setCursor(0,0);
+   setEEProm(readEEPROM());
+   pinMode(RELAYPIN, OUTPUT);
    dht.begin();
-}
-
-void mcubake_h::clearLcd()
-{
-  lcd.setCursor(0,0);
-  lcd.clear();
-  lcd.home();
+   setTemp();
+   setHumid();
 }
 
 void mcubake_h::listenBtnPage()
@@ -136,50 +136,54 @@ void mcubake_h::listenBtnPage()
     {
       poz++;
       if (poz > poz_max) {
-        poz = 0;
+        poz = 1;
       }
     }
     else if (btn_push == 'D')
     {
       poz--;
       if (poz < poz_min) {
-          poz = 0;
+          poz = 1;
       }
     }
     else if (btn_push == 'R')
     {
       eeprom_read++;
+      Serial.println(eeprom_read);
+      setEEProm(eeprom_read);
     }
     else if (btn_push == 'L')
     {
       eeprom_read--;
-    }
-    
-    pozNew = poz;
-    if (pozNew != pozOld) {
-        pozOld = pozNew;
+      Serial.println(eeprom_read);
+      setEEProm(eeprom_read);
     }
 }
 
 void mcubake_h::indexPage()
 {
     //Default page
-    clearLcd();
-    lcd.print("HUMID :");
-    lcd.setCursor(7,0);
-    lcd.print(getHumid(),2);
-    lcd.setCursor(0,1);
-    lcd.print("TEMP  :");
-    lcd.setCursor(7,1);
-    lcd.print(getTemp(),2);
-  
     switch (poz)
     {
     case 0:
+      lcd.setCursor(0,0);
+      lcd.print("HUMIDITY% : ");
+      lcd.setCursor(12,0);
+      lcd.print(getHumid());
+      lcd.setCursor(0,1);
+      lcd.print("TEMP(C)   : ");
+      lcd.setCursor(12,1);
+      lcd.print(getTemp());
+      if (press == 1) {       //ถ้าผู้ใช้กดปุ่ม SELECT
+        press = 0;            //Reset ปุ่ม select รอกดรอบต่อไป
+        poz = 1;
+      }
       break;
     case 1:
-      clearLcd();
-      lcd.print("INDEX PAGE");
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===");
+      lcd.setCursor(0,1);
+      lcd.print("1.INDEX PAGE    ");
       if (press == 1) {       //ถ้าผู้ใช้กดปุ่ม SELECT
         press = 0;            //Reset ปุ่ม select รอกดรอบต่อไป
         poz = 0;              //Reset ปุ่ม up-down รอกดรอบต่อไป
@@ -187,8 +191,10 @@ void mcubake_h::indexPage()
       }
       break;
     case 2:
-      clearLcd();
-      lcd.print("SET HUMIDITY");
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===  ");
+      lcd.setCursor(0,1);
+      lcd.print("2.SET % HUMIDITY");
       if (press == 1) {
         press = 0;
         poz = 0;
@@ -196,8 +202,10 @@ void mcubake_h::indexPage()
       }
       break;
     case 3:
-      clearLcd();
-      lcd.print("ABOUT US");
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===");
+      lcd.setCursor(0,1);
+      lcd.print("3.ABOUT US      ");
       if (press == 1) {
         press = 0;
         poz = 0;
@@ -210,18 +218,82 @@ void mcubake_h::indexPage()
 void mcubake_h::showAboutPage()
 {
     //Default page
-    clearLcd();
-    lcd.print("SW-VERSION : 1.0");
-    lcd.setCursor(0,2);
-    lcd.print("PAKCHONGAGROTECH");
   
     switch (poz)
     {
     case 0:
+      lcd.setCursor(0,0);
+      lcd.print("SW-VERSION : 1.0");
+      lcd.setCursor(0,2);
+      lcd.print("PAKCHONGAGROTECH");
+      if (press == 1) {       //ถ้าผู้ใช้กดปุ่ม SELECT
+        press = 0;            //Reset ปุ่ม select รอกดรอบต่อไป
+        poz = 3;
+      }
       break;
     case 1:
-      clearLcd();
-      lcd.print("ABOUT US");
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===  ");
+      lcd.setCursor(0,1);
+      lcd.print("1.INDEX PAGE    ");
+      if (press == 1) {       //ถ้าผู้ใช้กดปุ่ม SELECT
+        press = 0;            //Reset ปุ่ม select รอกดรอบต่อไป
+        poz = 0;              //Reset ปุ่ม up-down รอกดรอบต่อไป
+        page = 0;             //Flage เปลี่ยนหน้า
+      }
+      break;
+    case 2:
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===  ");
+      lcd.setCursor(0,1);
+      lcd.print("2.SET % HUMIDITY");
+      if (press == 1) {
+        press = 0;
+        poz = 0;
+        page = 1;
+      }
+      break;
+    case 3:
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===  ");
+      lcd.setCursor(0,1);
+      lcd.print("3.ABOUT US      ");
+      if (press == 1) {
+        press = 0;
+        poz = 0;
+        page = 2;
+      }
+      break;
+    }
+}
+
+void mcubake_h::setHumidPage()
+{
+    //Default page
+ 
+    switch (poz)
+    {
+    case 0:
+      lcd.setCursor(0,0);
+      lcd.print("%HUMIDITY : ");
+      lcd.setCursor(12,0);
+      lcd.print(getEEProm());
+      lcd.setCursor(14,0);
+      lcd.print("% ");
+      lcd.setCursor(0,1);
+      lcd.print("SELECT TO SAVE  ");
+      if (press == 1) {       //ถ้าผู้ใช้กดปุ่ม SELECT
+        press = 0;            //Reset ปุ่ม select รอกดรอบต่อไป
+        writeEEPROM(eeprom_read);
+        poz = 3;
+      }
+      break;
+    case 1:
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===  ");
+      lcd.setCursor(0,1);
+      lcd.print("3.ABOUT US      ");
+      setEEProm(readEEPROM());
       if (press == 1) {       //ถ้าผู้ใช้กดปุ่ม SELECT
         press = 0;            //Reset ปุ่ม select รอกดรอบต่อไป
         poz = 0;              //Reset ปุ่ม up-down รอกดรอบต่อไป
@@ -229,8 +301,11 @@ void mcubake_h::showAboutPage()
       }
       break;
     case 2:
-      clearLcd();
-      lcd.print("INDEX PAGE");
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===  ");
+      lcd.setCursor(0,1);
+      lcd.print("1.INDEX PAGE    ");
+      setEEProm(readEEPROM());
       if (press == 1) {
         press = 0;
         poz = 0;
@@ -238,8 +313,10 @@ void mcubake_h::showAboutPage()
       }
       break;
     case 3:
-      clearLcd();
-      lcd.print("SET HUMIDITY");
+      lcd.setCursor(0,0);
+      lcd.print("  === MENU ===  ");
+      lcd.setCursor(0,1);
+      lcd.print("2.SET % HUMIDITY");
       if (press == 1) {
         press = 0;
         poz = 0;
@@ -249,50 +326,15 @@ void mcubake_h::showAboutPage()
     }
 }
 
-void mcubake_h::setHumidPage()
+void mcubake_h::setRelayCtrl()
 {
-    //Default page
-    eeprom_read = readEEPROM();
-    clearLcd();
-    lcd.print("SET HUMIDITY :");
-    lcd.setCursor(0,2);
-    lcd.print(eeprom_read);
-    lcd.setCursor(4,2);
-    lcd.print("%");
-  
-    switch (poz)
+    if(getHumid() >= eeprom_read)
     {
-    case 0:
-      break;
-    case 1:
-      clearLcd();
-      lcd.print("SET HUMIDITY");
-      if (press == 1) {       //ถ้าผู้ใช้กดปุ่ม SELECT
-        press = 0;            //Reset ปุ่ม select รอกดรอบต่อไป
-        poz = 0;              //Reset ปุ่ม up-down รอกดรอบต่อไป
-        page = 1;             //Flage เปลี่ยนหน้า
-      }
-      break;
-    case 2:
-      clearLcd();
-      lcd.print("ABOUT US");
-      if (press == 1) {
-        press = 0;
-        poz = 0;
-        writeEEPROM();
-        page = 2;
-      }
-      break;
-    case 3:
-      clearLcd();
-      lcd.print("INDEX PAGE");
-      if (press == 1) {
-        press = 0;
-        poz = 0;
-        writeEEPROM();
-        page = 0;
-      }
-      break;
+        digitalWrite(RELAYPIN, HIGH);
+    }
+    else
+    {
+        digitalWrite(RELAYPIN, LOW);
     }
 }
 

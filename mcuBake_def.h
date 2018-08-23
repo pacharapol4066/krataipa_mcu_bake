@@ -9,6 +9,8 @@
 
 #define DHTPIN  2
 #define DHTTYPE DHT11
+#define RELAYPIN 13
 #define DEFAULTHUMID  70
+#define KEYPAD_PIN  0   //A0
 
 #endif

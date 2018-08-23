@@ -19,6 +19,7 @@ void setup()
 void loop()
 {
     MCUBAKE.listenBtnPage();
+    MCUBAKE.setRelayCtrl();
     // page select
     switch (MCUBAKE.page) {
     case 0:
