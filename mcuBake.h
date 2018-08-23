@@ -26,10 +26,10 @@ class mcubake_h
   private:
   int getDHTTemp();
   int getDHTHumid();
-  int getTemp();
-  int getHumid();
   void setHumid();
   void setTemp();
+  int getTemp();
+  int getHumid();
   void writeEEPROM(int val);
   int readEEPROM();
   void setEEProm(int val);
@@ -47,6 +47,7 @@ class mcubake_h
   void showAboutPage();
   void setHumidPage();
   void setRelayCtrl();
+  void resetHumidTemp();
 };
 
 extern mcubake_h MCUBAKE;

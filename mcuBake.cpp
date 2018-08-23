@@ -115,12 +115,14 @@ void mcubake_h::init(void)
    setEEProm(readEEPROM());
    pinMode(RELAYPIN, OUTPUT);
    dht.begin();
-   setTemp();
-   setHumid();
+//   setTemp();
+//   setHumid();
 }
 
 void mcubake_h::listenBtnPage()
 {
+    setTemp();
+    setHumid();
     btn_push = ReadKeypad();
     WaitBtnRelease();
     /* ถ้ามีการกดปุ่ม จะเริ่มทำงาน */
